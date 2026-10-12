@@ -35,7 +35,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 0 : setup, thème, schéma SQL, RLS, fonctions, seed, HMAC testé
 - [x] Étape 1 : connexion, mot de passe oublié/réinitialisation, middleware, `requireSession(roles)`, layout (sidebar desktop, menu horizontal mobile), thème clair/sombre
 - [x] Étape 2 : Stocks (catalogue paginé côté serveur via la vue `v_produits_stock`, mouvements, alertes rouge/orange/DLC, fiche + historique, inventaire mobile avec validation, import/export CSV, archivage annulable)
-- [ ] 3 Fournisseurs/commandes · 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 3 : fournisseurs (fiche, stats), commandes (statuts, « Valider et envoyer » → n8n, réception, duplication, « Commander » depuis les stocks), webhook `orders`
+- [ ] 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -43,3 +44,12 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Inventaire : `qte_theorique` est figée au moment du comptage ; la validation appelle la fonction SQL `valider_inventaire` (mouvements de correction).
 - Import CSV tout-ou-rien, séparateur « ; », colonnes dans `importerProduits`. Export : `/api/stocks/export` (limité par la RLS).
 - TanStack Table est épinglé en v8 (la v9 a une API différente).
+
+## Fournisseurs et commandes (étape 3)
+- Seul le gérant passe une commande à « envoyée » : garde-fou SQL (`controle_commande`, migration 0005) ET action `validerEtEnvoyer` (statut posé seulement si n8n répond 2xx ; sinon la commande reste « à valider »).
+- Les prix des lignes sont toujours relus en base (jamais pris du navigateur) ; `total_estime` est recalculé par trigger.
+- `/api/webhooks/n8n/orders` (signé HMAC) : `create_draft` (jamais autre chose qu'un brouillon, complète un brouillon automatique ouvert), `update_status` (envoyee seulement si `valide_par` renseigné ; confirmee ; en_retard), `mark_reminder`. Codes : 401 signature, 400 données, 404 introuvable, 409 transition interdite.
+- `callN8n()` (`src/lib/webhooks/n8n-client.ts`) signe les appels app → n8n avec `N8N_OUTBOUND_SECRET`.
+- « Commander » : un brouillon par fournisseur et par pôle ; « Commander tous les produits en alerte » = produits **sous le seuil** (rouge). Quantité = réappro conseillé, sinon 2×seuil − stock.
+- Statistiques fournisseur : délai réel = réception − envoi ; conforme = toutes lignes reçues = commandées.
+- Liens stylés en bouton : `ButtonLink` (ne jamais imbriquer un `<Link>` dans un `<Button>`).

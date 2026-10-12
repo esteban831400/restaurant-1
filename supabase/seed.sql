@@ -139,3 +139,21 @@ begin
    ('echec_automatisation','Échec : Relances fournisseurs','Fournisseur sans adresse e-mail','/automatisations/relances/historique'),
    ('message_standard','Message laissé au standard','Un client souhaite réserver pour 6 personnes','/appels');
 end $$;
+
+-- Lignes et livraisons validées pour les commandes livrées / clôturées (alimente les statistiques fournisseurs)
+do $$
+declare c record; p record; liv uuid; ligne_prix numeric;
+begin
+  for c in select * from commandes where statut in ('livree','cloturee') loop
+    select * into p from produits where fournisseur_id = c.fournisseur_id and actif order by nom limit 1;
+    continue when p.id is null;
+    ligne_prix := p.prix_achat * case when c.statut = 'cloturee' then 0.92 else 1 end; -- le prix a augmenté depuis
+    insert into commande_lignes(commande_id, produit_id, quantite, prix_unitaire) values (c.id, p.id, 20, ligne_prix);
+    insert into livraisons(commande_id, fournisseur_id, pole_id, statut, recu_le, recu_par)
+    values (c.id, c.fournisseur_id, c.pole_id, 'validee', c.date_envoi + interval '2 days', '00000000-0000-0000-0000-000000000002')
+    returning id into liv;
+    insert into livraison_lignes(livraison_id, produit_id, qte_commandee, qte_recue, ecart_motif)
+    values (liv, p.id, 20, case when c.statut = 'livree' then 18 else 20 end, case when c.statut = 'livree' then 'Caisse abîmée' end);
+  end loop;
+  update commandes set valide_par = '00000000-0000-0000-0000-000000000001' where statut in ('envoyee','confirmee','livree','cloturee','en_retard');
+end $$;

@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef, type RowSelectionState } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { Download, Minus, Plus, Trash2 } from "lucide-react";
+import { Download, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NiveauBadge, PoleBadge } from "@/components/stocks/badges";
 import { MouvementDialog } from "@/components/stocks/mouvement-dialog";
 import { toCsv } from "@/lib/csv/csv";
 import { archiverProduits, restaurerProduits } from "@/server/actions/stock";
+import { commanderProduits } from "@/server/actions/commandes";
 import type { Pole, ProduitStock } from "@/types/stock";
 
 type Props = { produits: ProduitStock[]; poles: Pole[]; peutGerer: boolean };
@@ -20,6 +22,7 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR");
 export function ProduitTable({ produits, poles, peutGerer }: Props) {
   const [selection, setSelection] = useState<RowSelectionState>({});
   const [mouvement, setMouvement] = useState<{ produit: ProduitStock; type: "entree" | "sortie" } | null>(null);
+  const router = useRouter();
   const [, start] = useTransition();
   const parPole = useMemo(() => new Map(poles.map((p) => [p.id, p])), [poles]);
 
@@ -73,10 +76,13 @@ export function ProduitTable({ produits, poles, peutGerer }: Props) {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setMouvement({ produit: row.original, type: "entree" })}><Plus className="h-4 w-4" />Entrée</Button>
           <Button size="sm" variant="outline" onClick={() => setMouvement({ produit: row.original, type: "sortie" })}><Minus className="h-4 w-4" />Sortie</Button>
+          {peutGerer && row.original.niveau !== "ok" && (
+            <Button size="sm" onClick={() => commander([row.original.id])}><ShoppingCart className="h-4 w-4" />Commander</Button>
+          )}
         </div>
       ),
     },
-  ], [parPole]);
+  ], [parPole, peutGerer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const table = useReactTable({
     data: produits, columns, getCoreRowModel: getCoreRowModel(), getRowId: (r) => r.id,
@@ -94,6 +100,19 @@ export function ProduitTable({ produits, poles, peutGerer }: Props) {
     const a = Object.assign(document.createElement("a"), { href: url, download: "selection-produits.csv" });
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function commander(cibles: string[]) {
+    start(async () => {
+      const r = await commanderProduits({ ids: cibles });
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      if (r.data.sansFournisseur) toast.warning(`${r.data.sansFournisseur} produit(s) ignoré(s) : pas de fournisseur principal`);
+      toast.success("Brouillon de commande prêt");
+      router.push(r.data.commandes.length === 1 ? `/commandes/${r.data.commandes[0]}` : "/commandes?statut=brouillon");
+    });
   }
 
   function archiver() {
@@ -122,6 +141,7 @@ export function ProduitTable({ produits, poles, peutGerer }: Props) {
         <div role="region" aria-label="Actions groupées" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-muted p-3">
           <span className="text-sm font-medium">{ids.length} sélectionné(s)</span>
           <Button size="sm" variant="outline" onClick={exporter}><Download className="h-4 w-4" />Exporter</Button>
+          {peutGerer && <Button size="sm" onClick={() => commander(ids)}><ShoppingCart className="h-4 w-4" />Commander</Button>}
           {peutGerer && <Button size="sm" variant="destructive" onClick={archiver}><Trash2 className="h-4 w-4" />Archiver</Button>}
         </div>
       )}

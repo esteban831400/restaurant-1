@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
+import { CommanderAlertes } from "@/components/stocks/commander-alertes";
 import { ProduitTable } from "@/components/stocks/produit-table";
 import { requireSession } from "@/lib/auth/session";
 import { listPoles, listProduits, PAGE_SIZE } from "@/server/queries/stock";
@@ -49,9 +49,10 @@ export default async function PageStocks({ searchParams }: Props) {
           <Button type="submit">Filtrer</Button>
         </form>
         {peutGerer && (
-          <Button>
-            <Link href="/stocks/produits/nouveau"><Plus className="mr-1 inline h-5 w-5" />Nouveau produit</Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <CommanderAlertes pole={searchParams.pole} />
+            <ButtonLink href="/stocks/produits/nouveau"><Plus className="h-5 w-5" />Nouveau produit</ButtonLink>
+          </div>
         )}
       </div>
       {error && <p role="alert" className="mb-3 text-destructive">Impossible de charger les produits. Réessayez.</p>}
