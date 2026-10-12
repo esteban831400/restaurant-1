@@ -195,7 +195,7 @@ L'application appelle des webhooks n8n **signés** (en-têtes du §1, secret `N8
 | Bouton **Valider et envoyer** (gérant) | variable `N8N_WEBHOOK_ORDER_SEND` | `{ "commande_id": "<uuid>" }` |
 | Bouton **Lancer maintenant** | adresse de l'automatisation (Paramètres → adresses des automatisations ; `N8N_WEBHOOK_ORDER_SEND` pour `envoi_commandes`, `N8N_WEBHOOK_ASSISTANT` pour `assistant_ia`) | `{ "automation": "<cle>", "execution_id": "<uuid>", "declenche_par": "manuel", "demande_par": "<uuid>" }` |
 | **Confirmer et envoyer** une relance | adresse de l'automatisation `relances` | `{ "type": "send_reminder", "relance_id": "<uuid>", "commande_id": "<uuid>", "message": "…" }` |
-| Question à l'assistant | `N8N_WEBHOOK_ASSISTANT` | défini avec l'étape « Assistant IA » (section ajoutée dans ce document) |
+| Question à l'assistant | `N8N_WEBHOOK_ASSISTANT` | voir §11 (réponse **synchrone**, jusqu'à 30 s) |
 
 Précisions :
 
@@ -206,3 +206,39 @@ Précisions :
 ## 10. Tâche planifiée de l'application (hors n8n)
 
 `GET|POST {APP_URL}/api/cron/purge` avec `Authorization: Bearer <CRON_SECRET>` (Vercel Cron, quotidien) : supprime les appels au-delà de la durée de conservation et passe en `en_retard` les commandes dont la livraison prévue est dépassée. Non destiné à n8n.
+
+## 11. Assistant IA (multi-agent)
+
+Depuis la page « Assistant », l'application appelle `N8N_WEBHOOK_ASSISTANT` et **attend la réponse dans la même requête HTTP** (délai maximum **30 secondes** ; au-delà l'utilisateur voit « l'assistant met trop de temps à répondre » et la question n'est pas enregistrée). Le webhook n8n doit donc répondre en fin de flux (« Respond to Webhook »).
+
+L'identité et le rôle sont **lus par l'application depuis la session vérifiée côté serveur** : ils ne viennent jamais du navigateur. Seuls le gérant et les responsables peuvent poser une question, et uniquement si l'automatisation `assistant_ia` est activée.
+
+Requête (en-têtes signés du §1, secret `N8N_OUTBOUND_SECRET`) :
+
+```json
+{
+  "conversation_id": "<uuid>",
+  "message": "Qu'est-ce qui manque cette semaine ?",
+  "historique": [ { "role": "user", "contenu": "…" }, { "role": "assistant", "contenu": "…" } ],
+  "utilisateur": { "id": "<uuid>", "nom": "Marc Lefèvre", "role": "responsable", "pole_id": "<uuid>" }
+}
+```
+- `historique` : les 10 derniers messages de la conversation (hors question en cours), du plus ancien au plus récent.
+- `utilisateur.role` ∈ `gerant`, `responsable`. `pole_id` est `null` pour le gérant.
+
+Réponse attendue, `200` :
+
+```json
+{ "reponse": "Il manque 3 produits cette semaine : …", "outils_utilises": ["stock", "commandes"] }
+```
+- `reponse` : texte brut en français (≤ 8000 caractères), sans HTML. Les retours à la ligne sont conservés.
+- `outils_utilises` : optionnel, liste de noms courts (affichée sous la réponse et conservée dans `actions_agent`).
+- Pour faciliter la construction du flux, l'application accepte aussi `{ "output": "…" }`, `{ "text": "…" }`, une simple chaîne, ou un tableau dont le premier élément est l'un de ces formats.
+- Toute réponse non `2xx`, vide ou illisible est présentée à l'utilisateur comme « l'assistant n'a pas pu répondre » ; rien n'est enregistré.
+
+Règles que le flux n8n **doit** respecter :
+1. **Périmètre** : un `responsable` n'accède qu'aux données de son `pole_id` (stocks, commandes, fournisseurs) et **jamais** aux appels, automatisations, paramètres ni autres utilisateurs. Le gérant voit tout.
+2. **Aucun envoi sans validation** : pour « commander », l'agent crée des **brouillons** avec `orders/create_draft` (`source: "assistant"`) ; pour « relancer », il dépose une relance avec `orders/propose_reminder`. Le gérant valide ensuite dans « À valider ». L'agent ne peut pas poser `envoyee` (refusé par `orders/update_status` sans validation du gérant).
+3. Il doit dire clairement dans sa réponse ce qu'il a préparé (« J'ai préparé 2 brouillons à valider dans la page À valider »).
+
+Côté application : chaque échange réussi est enregistré dans l'historique de conversation de l'utilisateur et dans `actions_agent` (date, demande, réponse, outils). Limite : 20 questions par utilisateur sur 10 minutes (`429 trop_de_questions`). Les utilisateurs peuvent supprimer leurs conversations (RGPD).

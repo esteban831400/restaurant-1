@@ -38,7 +38,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 3 : fournisseurs (fiche, stats), commandes (statuts, « Valider et envoyer » → n8n, réception, duplication, « Commander » depuis les stocks), webhook `orders`
 - [x] Étape 4 : journal des appels IA (gérant), stats, webhook `calls`, purge RGPD
 - [x] Étape 5 : automatisations (cartes, réglages, lancement, historique), centre « À valider », cloche Realtime, `docs/n8n-contract.md`
-- [ ] 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 6 : assistant IA (chat, historique, `/api/assistant`)
+- [ ] 7 Dashboard · 8 Paramètres · 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -72,3 +73,9 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Centre « À valider » : commandes brouillon/à valider (un clic = `validerEtEnvoyer`), livraisons lues par l'IA (`valider_livraison` : entrées de stock + commande livrée), relances proposées (table `relances`, envoyées seulement après confirmation).
 - Cloche : `notification-bell.tsx`, Supabase Realtime ; la RLS décide de ce que chacun reçoit (gérant : tout ce qui est « pour tous » ; responsable : celles de son pôle). Les notifications n'ont pas de policy d'insertion : elles sont créées par triggers SQL ou par le service_role (webhooks).
 - Migration 0007 : `relances`, `valider_livraison`, policies de notifications, audit des automatisations.
+
+## Assistant IA (étape 6)
+- `POST /api/assistant` : identité et rôle lus depuis la session serveur (jamais du corps de requête) ; gérant et responsables seulement ; refusé (409) si l'automatisation `assistant_ia` est désactivée ; 20 questions / 10 min / utilisateur (429).
+- Appel synchrone du webhook (`N8N_WEBHOOK_ASSISTANT`, 30 s) ; `maxDuration = 60`. La conversation (`conversations_assistant.messages`, 100 messages max) n'est enregistrée qu'en cas de réponse réussie ; chaque échange est aussi journalisé dans `actions_agent` (insertion via service_role).
+- `lireReponseService()` tolère plusieurs formats de réponse (voir contrat §11, testé).
+- L'assistant est désactivé par défaut : le gérant l'active dans Automatisations.
