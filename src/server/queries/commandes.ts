@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { aujourdhuiParis } from "@/lib/dates";
 import { evolutionPrix, statsFournisseur, type LignePrix, type LivraisonStat } from "@/lib/commandes/stats";
 import type { StatutCommande } from "@/lib/commandes/statuts";
 
@@ -11,14 +12,15 @@ export type CommandeListe = {
   fournisseurs: { nom: string } | null;
 };
 
-export async function listCommandes(f: { statut?: string; pole?: string; fournisseur?: string; page?: number }) {
+export async function listCommandes(f: { statut?: string; pole?: string; fournisseur?: string; attendues?: boolean; page?: number }) {
   const page = Math.max(1, f.page ?? 1);
   let q = createClient()
     .from("commandes")
     .select("id, numero, statut, source, total_estime, date_envoi, date_livraison_prevue, created_at, pole_id, fournisseurs(nom)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-  if (f.statut) q = q.eq("statut", f.statut);
+  if (f.attendues) q = q.in("statut", ["envoyee", "confirmee", "en_retard"]).eq("date_livraison_prevue", aujourdhuiParis());
+  else if (f.statut) q = q.eq("statut", f.statut);
   if (f.pole) q = q.eq("pole_id", f.pole);
   if (f.fournisseur) q = q.eq("fournisseur_id", f.fournisseur);
   const { data, count, error } = await q;

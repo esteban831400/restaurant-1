@@ -13,10 +13,10 @@ import { listPoles } from "@/server/queries/stock";
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const date = (d: string | null) => (d ? new Date(d).toLocaleDateString("fr-FR") : "—");
 
-export default async function PageCommandes({ searchParams }: { searchParams: { statut?: string; pole?: string; page?: string } }) {
+export default async function PageCommandes({ searchParams }: { searchParams: { statut?: string; pole?: string; attendues?: string; page?: string } }) {
   const session = await requireSession(["gerant", "responsable"]);
   const [{ commandes, total, page, error }, poles] = await Promise.all([
-    listCommandes({ statut: searchParams.statut, pole: searchParams.pole, page: Number(searchParams.page) || 1 }),
+    listCommandes({ statut: searchParams.statut, pole: searchParams.pole, attendues: searchParams.attendues === "1", page: Number(searchParams.page) || 1 }),
     listPoles(),
   ]);
 
@@ -45,6 +45,11 @@ export default async function PageCommandes({ searchParams }: { searchParams: { 
         )}
         <Button type="submit">Filtrer</Button>
       </form>
+      {searchParams.attendues === "1" && (
+        <p role="status" className="mb-3 flex flex-wrap items-center gap-3 rounded-md bg-muted p-3 text-sm">
+          Livraisons attendues aujourd&apos;hui <Link href="/commandes" className="font-medium text-secondary hover:underline">Retirer le filtre</Link>
+        </p>
+      )}
       {error && <p role="alert" className="mb-3 text-destructive">Impossible de charger les commandes. Réessayez.</p>}
       {commandes.length === 0 ? (
         <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Aucune commande pour ces critères.</p>
@@ -67,7 +72,7 @@ export default async function PageCommandes({ searchParams }: { searchParams: { 
           </table>
         </div>
       )}
-      <Pagination page={page} total={total} pageSize={PAGE_SIZE} basePath="/commandes" params={{ statut: searchParams.statut, pole: searchParams.pole }} />
+      <Pagination page={page} total={total} pageSize={PAGE_SIZE} basePath="/commandes" params={{ statut: searchParams.statut, pole: searchParams.pole, attendues: searchParams.attendues }} />
     </>
   );
 }

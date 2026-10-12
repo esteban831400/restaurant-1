@@ -39,7 +39,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 4 : journal des appels IA (gérant), stats, webhook `calls`, purge RGPD
 - [x] Étape 5 : automatisations (cartes, réglages, lancement, historique), centre « À valider », cloche Realtime, `docs/n8n-contract.md`
 - [x] Étape 6 : assistant IA (chat, historique, `/api/assistant`)
-- [ ] 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 7 : tableau de bord gérant
+- [ ] 8 Paramètres · 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -79,3 +80,10 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Appel synchrone du webhook (`N8N_WEBHOOK_ASSISTANT`, 30 s) ; `maxDuration = 60`. La conversation (`conversations_assistant.messages`, 100 messages max) n'est enregistrée qu'en cas de réponse réussie ; chaque échange est aussi journalisé dans `actions_agent` (insertion via service_role).
 - `lireReponseService()` tolère plusieurs formats de réponse (voir contrat §11, testé).
 - L'assistant est désactivé par défaut : le gérant l'active dans Automatisations.
+
+## Tableau de bord (étape 7)
+- Données : `src/server/queries/dashboard.ts` (comptages `head` + 2 fonctions SQL de la migration 0008 : `valeur_stock_historique`, `top_consommation`, en `security invoker` donc filtrées par la RLS). Filtre pôle = paramètre `?pole=<id>` appliqué à tout (sauf les automatisations en échec, globales).
+- Cartes : lien étiré sur toute la carte + action distincte au-dessus (pas de contrôle imbriqué). Validation en un clic : liste « Commandes à valider » avec `validerEtEnvoyer`.
+- « À faire aujourd'hui » : `construireTaches()` (`src/lib/dashboard.ts`, testé). Les jours suivent l'heure de Paris (`aujourdhuiParis()`).
+- Top consommation = sorties uniquement (pas les pertes/corrections), classé par valeur (€) pour comparer des unités différentes.
+- `/commandes?attendues=1` : livraisons attendues aujourd'hui.
