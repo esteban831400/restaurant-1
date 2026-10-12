@@ -34,4 +34,12 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 ## Avancement
 - [x] Étape 0 : setup, thème, schéma SQL, RLS, fonctions, seed, HMAC testé
 - [x] Étape 1 : connexion, mot de passe oublié/réinitialisation, middleware, `requireSession(roles)`, layout (sidebar desktop, menu horizontal mobile), thème clair/sombre
-- [ ] 2 Stocks · 3 Fournisseurs/commandes · 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 2 : Stocks (catalogue paginé côté serveur via la vue `v_produits_stock`, mouvements, alertes rouge/orange/DLC, fiche + historique, inventaire mobile avec validation, import/export CSV, archivage annulable)
+- [ ] 3 Fournisseurs/commandes · 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+
+## Stocks (étape 2)
+- Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
+- Une sortie ou perte qui rendrait le stock négatif est refusée (`enregistrerMouvement`).
+- Inventaire : `qte_theorique` est figée au moment du comptage ; la validation appelle la fonction SQL `valider_inventaire` (mouvements de correction).
+- Import CSV tout-ou-rien, séparateur « ; », colonnes dans `importerProduits`. Export : `/api/stocks/export` (limité par la RLS).
+- TanStack Table est épinglé en v8 (la v9 a une API différente).
