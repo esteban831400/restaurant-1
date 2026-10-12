@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { BandeauBrouillon } from "@/components/ajout-rapide/bandeau-brouillon";
+import { useOutils } from "@/components/ajout-rapide/contexte";
+import { ecrireDernierFournisseur, lireDernierFournisseur, stockageSur } from "@/lib/brouillon";
+import { useBrouillon } from "@/lib/hooks/use-brouillon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +24,7 @@ type Props = {
   poleFixe: boolean;
   produitId?: string;
   valeurs?: Partial<ProduitValues>;
+  onTermine?: () => void;
 };
 
 function Champ({ id, label, erreur, children }: { id: string; label: string; erreur?: string; children: React.ReactNode }) {
@@ -32,7 +37,8 @@ function Champ({ id, label, erreur, children }: { id: string; label: string; err
   );
 }
 
-export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, produitId, valeurs }: Props) {
+export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, produitId, valeurs, onTermine }: Props) {
+  const { utilisateur } = useOutils();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -40,10 +46,15 @@ export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, prod
     nom: "", categorie: "", unite: "kg", lieu_stockage: "", fournisseur_id: null, pole_id: poleParDefaut,
     prix_achat: 0, seuil_min: 0, qte_reappro: 0, dlc_suivie: false, ...valeurs,
   };
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ProduitValues>({
-    resolver: zodResolver(produitSchema),
-    defaultValues: defaults,
-  });
+  const form = useForm<ProduitValues>({ resolver: zodResolver(produitSchema), defaultValues: defaults });
+  const { register, handleSubmit, reset, setValue, getValues, formState: { errors } } = form;
+  // Formulaire prérempli : dernier fournisseur utilisé (un brouillon restauré passe avant)
+  useEffect(() => {
+    if (produitId || getValues("fournisseur_id")) return;
+    const dernier = lireDernierFournisseur(stockageSur(), utilisateur.id);
+    if (dernier && fournisseurs.some((f) => f.id === dernier)) setValue("fournisseur_id", dernier);
+  }, [produitId, fournisseurs, getValues, setValue, utilisateur.id]);
+  const brouillon = useBrouillon("produit", form, !produitId);
   const num = { valueAsNumber: true } as const;
 
   const soumettre = (autre: boolean) =>
@@ -54,7 +65,10 @@ export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, prod
         const r = produitId ? await modifierProduit(produitId, payload) : await creerProduit(payload);
         if (!r.ok) return setErreur(r.error);
         toast.success(produitId ? "Produit modifié" : "Produit créé");
+        brouillon.effacer();
+        ecrireDernierFournisseur(stockageSur(), utilisateur.id, values.fournisseur_id);
         if (autre) reset({ ...defaults, fournisseur_id: values.fournisseur_id, categorie: values.categorie, unite: values.unite, lieu_stockage: values.lieu_stockage, nom: "" });
+        else if (onTermine) onTermine();
         else router.push(produitId ? `/stocks/produits/${produitId}` : "/stocks");
         router.refresh();
       }),
@@ -62,6 +76,7 @@ export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, prod
 
   return (
     <form onSubmit={soumettre(false)} className="grid max-w-2xl gap-4 sm:grid-cols-2" noValidate>
+      <BandeauBrouillon visible={brouillon.restaure} onRepartir={() => { reset(defaults); brouillon.effacer(); }} />
       <div className="sm:col-span-2">
         <Champ id="nom" label="Nom du produit" erreur={errors.nom?.message}><Input id="nom" autoFocus {...register("nom")} /></Champ>
       </div>
@@ -92,7 +107,7 @@ export function ProduitForm({ poles, fournisseurs, poleParDefaut, poleFixe, prod
       <div className="flex flex-wrap gap-3 sm:col-span-2">
         <Button type="submit" disabled={pending}>{pending ? "Enregistrement…" : "Enregistrer"}</Button>
         {!produitId && <Button type="button" variant="outline" disabled={pending} onClick={soumettre(true)}>Enregistrer et ajouter un autre</Button>}
-        <Button type="button" variant="ghost" onClick={() => router.back()}>Annuler</Button>
+        <Button type="button" variant="ghost" onClick={() => (onTermine ? onTermine() : router.back())}>Annuler</Button>
       </div>
     </form>
   );

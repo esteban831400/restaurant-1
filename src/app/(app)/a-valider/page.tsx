@@ -43,7 +43,7 @@ export default async function PageAValider() {
               </div>
               <div className="flex gap-2">
                 <ButtonLink href={`/commandes/${c.id}`} variant="outline" size="sm">Voir</ButtonLink>
-                <ActionButton size="sm" action={() => validerEtEnvoyer(c.id)} succes="Commande validée et envoyée" enCours="Envoi…" disabled={c.commande_lignes.length === 0}>Valider et envoyer</ActionButton>
+                <ActionButton size="sm" action={validerEtEnvoyer} argument={c.id} succes="Commande validée et envoyée" enCours="Envoi…" disabled={c.commande_lignes.length === 0}>Valider et envoyer</ActionButton>
               </div>
             </Card>
           </li>
@@ -60,8 +60,8 @@ export default async function PageAValider() {
                   <p className="text-sm text-muted-foreground">Reçue le {new Date(l.created_at).toLocaleDateString("fr-FR")}{l.fichier_url && <> · <a href={l.fichier_url} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline">Voir le document</a></>}</p>
                 </div>
                 <div className="flex gap-2">
-                  <ActionButton size="sm" variant="outline" action={() => rejeterLivraison(l.id)} succes="Livraison rejetée">Rejeter</ActionButton>
-                  <ActionButton size="sm" action={() => validerLivraison(l.id)} succes="Livraison validée : le stock est à jour" enCours="Validation…" disabled={l.livraison_lignes.length === 0}>Valider</ActionButton>
+                  <ActionButton size="sm" variant="outline" action={rejeterLivraison} argument={l.id} succes="Livraison rejetée">Rejeter</ActionButton>
+                  <ActionButton size="sm" action={validerLivraison} argument={l.id} succes="Livraison validée : le stock est à jour" enCours="Validation…" disabled={l.livraison_lignes.length === 0}>Valider</ActionButton>
                 </div>
               </div>
               {l.livraison_lignes.length > 0 ? (
@@ -83,8 +83,8 @@ export default async function PageAValider() {
                 <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{r.message}</p>
               </div>
               <div className="flex gap-2">
-                <ActionButton size="sm" variant="outline" action={() => rejeterRelance(r.id)} succes="Relance ignorée">Ignorer</ActionButton>
-                <ActionButton size="sm" action={() => confirmerRelance(r.id)} succes="Relance envoyée" enCours="Envoi…">Confirmer et envoyer</ActionButton>
+                <ActionButton size="sm" variant="outline" action={rejeterRelance} argument={r.id} succes="Relance ignorée">Ignorer</ActionButton>
+                <ActionButton size="sm" action={confirmerRelance} argument={r.id} succes="Relance envoyée" enCours="Envoi…">Confirmer et envoyer</ActionButton>
               </div>
             </Card>
           </li>

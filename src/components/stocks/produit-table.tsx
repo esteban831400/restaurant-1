@@ -145,7 +145,34 @@ export function ProduitTable({ produits, poles, peutGerer }: Props) {
           {peutGerer && <Button size="sm" variant="destructive" onClick={archiver}><Trash2 className="h-4 w-4" />Archiver</Button>}
         </div>
       )}
-      <div className="overflow-x-auto rounded-lg border">
+      <ul aria-label="Produits" className="space-y-3 md:hidden">
+        {table.getRowModel().rows.map((row) => {
+          const p = row.original;
+          return (
+            <li key={row.id} className="space-y-3 rounded-lg border bg-card p-3">
+              <div className="flex items-start gap-3">
+                <input type="checkbox" className="mt-1 h-6 w-6 shrink-0" aria-label={`Sélectionner ${p.nom}`} checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/stocks/produits/${p.id}`} className="block truncate text-base font-medium text-secondary">{p.nom}</Link>
+                  <p className="text-xs text-muted-foreground">{p.categorie ?? "—"} · {p.lieu_stockage ?? "—"}</p>
+                </div>
+                <p className="shrink-0 text-right text-lg font-semibold">{fmt(p.stock_actuel)} {p.unite}<span className="block text-xs font-normal text-muted-foreground">seuil {fmt(p.seuil_min)}</span></p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <PoleBadge pole={parPole.get(p.pole_id)} />
+                <NiveauBadge niveau={p.niveau} />
+                {p.dlc_proche && p.prochaine_dlc && <span className="text-xs font-medium text-red-700 dark:text-red-300">DLC {fmtDate(p.prochaine_dlc)}</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setMouvement({ produit: p, type: "entree" })}><Plus className="h-5 w-5" />Entrée</Button>
+                <Button variant="outline" onClick={() => setMouvement({ produit: p, type: "sortie" })}><Minus className="h-5 w-5" />Sortie</Button>
+                {peutGerer && p.niveau !== "ok" && <Button className="col-span-2" onClick={() => commander([p.id])}><ShoppingCart className="h-5 w-5" />Commander</Button>}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-muted">
             {table.getHeaderGroups().map((hg) => (

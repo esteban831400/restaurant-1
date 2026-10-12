@@ -10,7 +10,7 @@ import { recevoirLivraison } from "@/server/actions/commandes";
 type Ligne = { produit_id: string; nom: string; unite: string; quantite: number };
 
 /** Pointage ligne par ligne : par défaut tout est reçu, on ne corrige que les écarts. */
-export function ReceptionForm({ commandeId, lignes }: { commandeId: string; lignes: Ligne[] }) {
+export function ReceptionForm({ commandeId, lignes, onTermine }: { commandeId: string; lignes: Ligne[]; onTermine?: () => void }) {
   const router = useRouter();
   const [recu, setRecu] = useState<Record<string, string>>(() => Object.fromEntries(lignes.map((l) => [l.produit_id, String(l.quantite)])));
   const [motifs, setMotifs] = useState<Record<string, string>>({});
@@ -30,7 +30,8 @@ export function ReceptionForm({ commandeId, lignes }: { commandeId: string; lign
       const r = await recevoirLivraison({ commande_id: commandeId, lignes: payload });
       if (!r.ok) { toast.error(r.error); return; }
       toast.success("Livraison enregistrée : le stock est à jour");
-      router.push(`/commandes/${commandeId}`);
+      if (onTermine) onTermine();
+      else router.push(`/commandes/${commandeId}`);
       router.refresh();
     });
   }

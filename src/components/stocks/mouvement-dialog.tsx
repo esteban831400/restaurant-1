@@ -22,12 +22,12 @@ type Props = {
 export function MouvementDialog({ produit, typeInitial, onClose }: Props) {
   return (
     <Modal open={!!produit} onClose={onClose} titre={produit ? `Mouvement — ${produit.nom}` : ""}>
-      {produit && <Formulaire key={`${produit.id}-${typeInitial}`} produit={produit} typeInitial={typeInitial} onClose={onClose} />}
+      {produit && <FormulaireMouvement key={`${produit.id}-${typeInitial}`} produit={produit} typeInitial={typeInitial} onClose={onClose} />}
     </Modal>
   );
 }
 
-function Formulaire({ produit, typeInitial, onClose }: { produit: NonNullable<Props["produit"]>; typeInitial: Props["typeInitial"]; onClose: () => void }) {
+export function FormulaireMouvement({ produit, typeInitial, onClose }: { produit: NonNullable<Props["produit"]>; typeInitial: Props["typeInitial"]; onClose: () => void }) {
   const [pending, start] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
   const {

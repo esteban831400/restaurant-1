@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { BandeauBrouillon } from "@/components/ajout-rapide/bandeau-brouillon";
+import { useOutils } from "@/components/ajout-rapide/contexte";
+import { ecrireDernierFournisseur, lireDernierFournisseur, stockageSur } from "@/lib/brouillon";
+import { useBrouillon } from "@/lib/hooks/use-brouillon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,19 +21,28 @@ import type { FournisseurOption, Pole } from "@/types/stock";
 type ProduitOption = { id: string; nom: string; unite: string; prix_achat: number; qte_reappro: number; fournisseur_id: string | null; pole_id: string };
 type Props = {
   poles: Pole[]; fournisseurs: FournisseurOption[]; produits: ProduitOption[];
-  poleParDefaut: string; poleFixe: boolean; commandeId?: string; valeurs?: Partial<CommandeValues>;
+  poleParDefaut: string; poleFixe: boolean; commandeId?: string; valeurs?: Partial<CommandeValues>; onTermine?: () => void;
 };
 
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
-export function CommandeForm({ poles, fournisseurs, produits, poleParDefaut, poleFixe, commandeId, valeurs }: Props) {
+export function CommandeForm({ poles, fournisseurs, produits, poleParDefaut, poleFixe, commandeId, valeurs, onTermine }: Props) {
+  const { utilisateur } = useOutils();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<CommandeValues>({
+  const form = useForm<CommandeValues>({
     resolver: zodResolver(commandeSchema),
     defaultValues: { fournisseur_id: "", pole_id: poleParDefaut, date_livraison_prevue: "", lignes: [], ...valeurs },
   });
+  const { register, control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = form;
+  // Formulaire prérempli : dernier fournisseur utilisé (un brouillon restauré passe avant)
+  useEffect(() => {
+    if (commandeId || getValues("fournisseur_id")) return;
+    const dernier = lireDernierFournisseur(stockageSur(), utilisateur.id);
+    if (dernier && fournisseurs.some((f) => f.id === dernier)) setValue("fournisseur_id", dernier);
+  }, [commandeId, fournisseurs, getValues, setValue, utilisateur.id]);
+  const brouillon = useBrouillon("commande", form, !commandeId);
   const { fields, append, remove } = useFieldArray({ control, name: "lignes" });
   const fournisseurId = watch("fournisseur_id");
   const poleId = watch("pole_id");
@@ -61,12 +74,16 @@ export function CommandeForm({ poles, fournisseurs, produits, poleParDefaut, pol
         destination = r.data.id;
       }
       toast.success(commandeId ? "Commande modifiée" : "Brouillon enregistré");
-      router.push(`/commandes/${destination}`);
+      brouillon.effacer();
+      ecrireDernierFournisseur(stockageSur(), utilisateur.id, values.fournisseur_id);
+      if (onTermine) onTermine();
+      else router.push(`/commandes/${destination}`);
       router.refresh();
     });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-5" noValidate>
+      <BandeauBrouillon visible={brouillon.restaure} onRepartir={() => { reset({ fournisseur_id: "", pole_id: poleParDefaut, date_livraison_prevue: "", lignes: [] }); brouillon.effacer(); }} />
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="fournisseur_id">Fournisseur</Label>
@@ -121,7 +138,7 @@ export function CommandeForm({ poles, fournisseurs, produits, poleParDefaut, pol
       {erreur && <p role="alert" className="text-sm text-destructive">{erreur}</p>}
       <div className="flex gap-3">
         <Button type="submit" disabled={pending}>{pending ? "Enregistrement…" : "Enregistrer le brouillon"}</Button>
-        <Button type="button" variant="ghost" onClick={() => router.back()}>Annuler</Button>
+        <Button type="button" variant="ghost" onClick={() => (onTermine ? onTermine() : router.back())}>Annuler</Button>
       </div>
     </form>
   );

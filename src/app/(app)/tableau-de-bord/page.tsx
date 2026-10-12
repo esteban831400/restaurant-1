@@ -96,7 +96,7 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
                     <Link href={`/commandes/${cmd.id}`} className="font-medium text-secondary hover:underline">n°{cmd.numero} — {cmd.fournisseur}</Link>
                     <p className="flex items-center gap-2 text-sm text-muted-foreground"><StatutBadge statut={cmd.statut as StatutCommande} />{cmd.nbLignes} produit(s) · {euro.format(cmd.total_estime)}</p>
                   </div>
-                  <ActionButton size="sm" action={() => validerEtEnvoyer(cmd.id)} succes="Commande validée et envoyée" enCours="Envoi…" disabled={cmd.nbLignes === 0}>Valider et envoyer</ActionButton>
+                  <ActionButton size="sm" action={validerEtEnvoyer} argument={cmd.id} succes="Commande validée et envoyée" enCours="Envoi…" disabled={cmd.nbLignes === 0}>Valider et envoyer</ActionButton>
                 </li>
               ))}
             </ul>

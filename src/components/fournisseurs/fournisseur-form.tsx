@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { BandeauBrouillon } from "@/components/ajout-rapide/bandeau-brouillon";
+import { useBrouillon } from "@/lib/hooks/use-brouillon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,14 +37,16 @@ function JoursPicker({ legende, valeur, onChange }: { legende: string; valeur: n
   );
 }
 
-type Props = { poles: Pole[]; choixPole: boolean; fournisseurId?: string; valeurs?: Partial<FournisseurValues> };
+type Props = { poles: Pole[]; choixPole: boolean; fournisseurId?: string; valeurs?: Partial<FournisseurValues>; onTermine?: () => void };
 
-export function FournisseurForm({ poles, choixPole, fournisseurId, valeurs }: Props) {
+export function FournisseurForm({ poles, choixPole, fournisseurId, valeurs, onTermine }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
   const defaults: FournisseurValues = { nom: "", contact: "", email: "", telephone: "", mode_commande: "mail", jours_commande: [], jours_livraison: [], delai_jours: 2, minimum_commande: 0, pole_id: null, notes: "", ...valeurs };
-  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FournisseurValues>({ resolver: zodResolver(fournisseurSchema), defaultValues: defaults });
+  const form = useForm<FournisseurValues>({ resolver: zodResolver(fournisseurSchema), defaultValues: defaults });
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = form;
+  const brouillon = useBrouillon("fournisseur", form, !fournisseurId);
   const num = { valueAsNumber: true } as const;
 
   const soumettre = (autre: boolean) => handleSubmit((values) => start(async () => {
@@ -59,7 +63,9 @@ export function FournisseurForm({ poles, choixPole, fournisseurId, valeurs }: Pr
       destination = `/fournisseurs/${r.data.id}`;
     }
     toast.success(fournisseurId ? "Fournisseur modifié" : "Fournisseur créé");
+    brouillon.effacer();
     if (autre) reset({ ...defaults, mode_commande: values.mode_commande, pole_id: values.pole_id });
+    else if (onTermine) onTermine();
     else router.push(destination);
     router.refresh();
   }));
@@ -74,6 +80,7 @@ export function FournisseurForm({ poles, choixPole, fournisseurId, valeurs }: Pr
 
   return (
     <form onSubmit={soumettre(false)} className="grid max-w-2xl gap-4 sm:grid-cols-2" noValidate>
+      <BandeauBrouillon visible={brouillon.restaure} onRepartir={() => { reset(defaults); brouillon.effacer(); }} />
       <div className="sm:col-span-2">{champ("nom", "Nom du fournisseur", { autoFocus: true })}</div>
       {champ("contact", "Personne à contacter")}
       {champ("telephone", "Téléphone", { type: "tel", inputMode: "tel" })}
@@ -105,7 +112,7 @@ export function FournisseurForm({ poles, choixPole, fournisseurId, valeurs }: Pr
       <div className="flex flex-wrap gap-3 sm:col-span-2">
         <Button type="submit" disabled={pending}>{pending ? "Enregistrement…" : "Enregistrer"}</Button>
         {!fournisseurId && <Button type="button" variant="outline" disabled={pending} onClick={soumettre(true)}>Enregistrer et ajouter un autre</Button>}
-        <Button type="button" variant="ghost" onClick={() => router.back()}>Annuler</Button>
+        <Button type="button" variant="ghost" onClick={() => (onTermine ? onTermine() : router.back())}>Annuler</Button>
       </div>
     </form>
   );

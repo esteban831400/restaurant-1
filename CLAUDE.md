@@ -41,7 +41,7 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 6 : assistant IA (chat, historique, `/api/assistant`)
 - [x] Étape 7 : tableau de bord gérant
 - [x] Étape 8 : paramètres (identité/thème, utilisateurs, horaires, adresses, journal, RGPD)
-- [ ] 9 Raccourcis
+- [x] Étape 9 : ajout rapide (bouton + panneau latéral), palette Ctrl/⌘ K, raccourcis clavier, brouillons automatiques, cartes mobiles
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -96,3 +96,19 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - **RGPD** : `GET /api/rgpd/export?user=` (gérant : tout le monde ; sinon soi-même ; journalisé) ; suppression = `auth.admin.deleteUser` (cascade profil/conversations/notifications), historique métier conservé anonymisé (FK `on delete set null`, migration 0009), `audit_log` anonymisé + entrée `RGPD_SUPPRESSION`.
 - **Adresses des automatisations** : `urlWebhookAutorisee()` refuse http en production, localhost, IP privées, `*.internal/*.local` et les identifiants dans l'URL (anti-SSRF ; le contrôle est refait à chaque appel). Limite connue : pas de protection contre le DNS rebinding. Les secrets ne passent jamais par l'interface (seul leur état « configuré / manquant » est affiché).
 - Horaires : `horairesDuJour()` (testé) calcule saison + fermetures ; exposé à n8n par `GET /api/webhooks/n8n/horaires`.
+
+## Raccourcis et ajouts rapides (étape 9)
+- `OutilsProvider` (`src/components/ajout-rapide/contexte.tsx`) dans le layout `(app)` : utilisateur, panneau d'ajout (`Drawer` basé sur `<dialog>`), palette (`Palette`), aide (`?`) et `Raccourcis` (touches). Les formulaires existants (produit, fournisseur, commande, réception, mouvement) sont **réutilisés** tels quels dans le panneau via la prop `onTermine`.
+- Logique pure et testée : `src/lib/raccourcis.ts` (entrées de palette par rôle, recherche sans accents, touches N / G+S|C|A), `src/lib/brouillon.ts` (brouillons et dernier fournisseur).
+- Les données des formulaires du panneau sont chargées à l'ouverture (`src/server/actions/ajout-rapide.ts`) ; `rechercheGlobale` (produits, fournisseurs, commandes) respecte la RLS et le rôle.
+- **Brouillons de formulaire** : localStorage, propres à chaque utilisateur, expirés à 7 jours, **effacés à la déconnexion** (appareils partagés). `[data-search]` marque le champ ciblé par la touche `/`.
+- Sur téléphone, le catalogue des stocks s'affiche en cartes (boutons Entrée / Sortie / Commander pleine largeur) ; le bouton flottant est masqué pendant le comptage d'inventaire.
+
+## Pièges rencontrés (à ne pas reproduire)
+- **Jamais de fonction fléchée en prop d'un composant client depuis une page serveur** : seule une référence d'action serveur peut passer. `ActionButton` reçoit donc `action={validerEtEnvoyer} argument={id}`.
+- Les variables `NEXT_PUBLIC_*` sont inlinées au build : build sans elles = écran d'erreur dans le navigateur.
+- `<dialog>` doit avoir un nom accessible (`aria-labelledby` dans `Modal`, `aria-label` dans `Drawer`).
+- Ne pas lancer `next dev` entre un `next build` et un `next start` (le dev écrase `.next`).
+
+## Vérification réalisée
+Tests unitaires (130) + parcours navigateur (Chromium/Playwright) contre un **faux Supabase** : 21 pages sans plantage, palette, raccourcis, panneaux, brouillons, cloche, mobile. Le SQL (migrations 0001–0009, seed) n'a, lui, **jamais été exécuté sur un vrai Postgres** : premier `supabase db reset` = premier test réel.
