@@ -36,7 +36,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 1 : connexion, mot de passe oublié/réinitialisation, middleware, `requireSession(roles)`, layout (sidebar desktop, menu horizontal mobile), thème clair/sombre
 - [x] Étape 2 : Stocks (catalogue paginé côté serveur via la vue `v_produits_stock`, mouvements, alertes rouge/orange/DLC, fiche + historique, inventaire mobile avec validation, import/export CSV, archivage annulable)
 - [x] Étape 3 : fournisseurs (fiche, stats), commandes (statuts, « Valider et envoyer » → n8n, réception, duplication, « Commander » depuis les stocks), webhook `orders`
-- [ ] 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 4 : journal des appels IA (gérant), stats, webhook `calls`, purge RGPD
+- [ ] 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -53,3 +54,11 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - « Commander » : un brouillon par fournisseur et par pôle ; « Commander tous les produits en alerte » = produits **sous le seuil** (rouge). Quantité = réappro conseillé, sinon 2×seuil − stock.
 - Statistiques fournisseur : délai réel = réception − envoi ; conforme = toutes lignes reçues = commandées.
 - Liens stylés en bouton : `ButtonLink` (ne jamais imbriquer un `<Link>` dans un `<Button>`).
+
+## Journal des appels (étape 4)
+- Page réservée au gérant (layout + RLS). Numéros stockés bruts, **toujours masqués à l'affichage** (`masquerNumero`, 4 premiers + 2 derniers chiffres).
+- `/api/webhooks/n8n/calls` : idempotent si `external_id` fourni (rejeu = mise à jour, 200 ; création = 201). Un appel « message laissé » crée une notification pour le gérant.
+- `/api/cron/purge` (GET ou POST, `Authorization: Bearer CRON_SECRET`, configuré dans `vercel.json`, 03:00 UTC) : supprime les appels plus vieux que `parametres.retention_appels_jours` (90 par défaut, réglable 7–3650 sur la page Appels), journalise dans `audit_log`, et en profite pour passer les commandes en retard (`marquer_commandes_en_retard`).
+- Filtres par dates interprétés à l'heure de Paris (`bornePariseEnUtc`) ; statistiques calculées sur 7, 30 ou 90 jours (10 000 appels max).
+- `log_audit()` gère aussi `parametres` (migration 0006) : tout changement de réglage est journalisé.
+- Graphiques : une seule couleur (primaire) pour les séries uniques, couleurs de pôle pour le graphique par pôle (nom toujours sur l'axe), infobulle au survol, vue tableau sous chaque graphique.
