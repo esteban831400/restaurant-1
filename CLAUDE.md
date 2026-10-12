@@ -12,6 +12,7 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 ## Structure
 - `src/app/(auth)` connexion · `src/app/(app)` pages protégées · `src/app/api` routes (webhooks n8n sous `api/webhooks/n8n/*`)
 - `src/lib/supabase/{client,server,admin}.ts` : navigateur / session serveur / service_role (webhooks et crons uniquement)
+- `src/lib/auth/{roles,session}.ts` : rôles, navigation par rôle, `requireSession()` (garde serveur) · `middleware.ts` : session + redirection vers /connexion
 - `src/lib/webhooks/hmac.ts` : signature HMAC des webhooks · `src/lib/env.ts` : validation Zod des variables
 - `supabase/migrations` schéma, RLS, fonctions · `supabase/seed.sql` données de démo · `docs/n8n-contract.md` contrat n8n
 
@@ -32,4 +33,5 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 
 ## Avancement
 - [x] Étape 0 : setup, thème, schéma SQL, RLS, fonctions, seed, HMAC testé
-- [ ] 1 Auth + rôles · 2 Stocks · 3 Fournisseurs/commandes · 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 1 : connexion, mot de passe oublié/réinitialisation, middleware, `requireSession(roles)`, layout (sidebar desktop, menu horizontal mobile), thème clair/sombre
+- [ ] 2 Stocks · 3 Fournisseurs/commandes · 4 Appels · 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
