@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { LogoutButton } from "@/components/layout/logout-button";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { NavLinks } from "@/components/layout/nav-links";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { navFor, ROLE_LABELS } from "@/lib/auth/roles";
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <p className="font-medium">{session.nomComplet}</p>
               <p className="text-muted-foreground">{ROLE_LABELS[session.role]}</p>
             </div>
+            {session.role !== "salarie" && <NotificationBell />}
             <ThemeToggle />
             <LogoutButton />
           </div>

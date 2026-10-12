@@ -14,7 +14,7 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - `src/lib/supabase/{client,server,admin}.ts` : navigateur / session serveur / service_role (webhooks et crons uniquement)
 - `src/lib/auth/{roles,session}.ts` : rôles, navigation par rôle, `requireSession()` (garde serveur) · `middleware.ts` : session + redirection vers /connexion
 - `src/lib/webhooks/hmac.ts` : signature HMAC des webhooks · `src/lib/env.ts` : validation Zod des variables
-- `supabase/migrations` schéma, RLS, fonctions · `supabase/seed.sql` données de démo · `docs/n8n-contract.md` contrat n8n
+- `supabase/migrations` schéma, RLS, fonctions · `supabase/seed.sql` données de démo · `docs/n8n-contract.md` contrat n8n (**à tenir à jour à chaque nouvelle route ou changement de format**)
 
 ## Conventions
 - Aucun secret en dur ni côté client ; `serverEnv()` n'est appelé que côté serveur.
@@ -37,7 +37,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 2 : Stocks (catalogue paginé côté serveur via la vue `v_produits_stock`, mouvements, alertes rouge/orange/DLC, fiche + historique, inventaire mobile avec validation, import/export CSV, archivage annulable)
 - [x] Étape 3 : fournisseurs (fiche, stats), commandes (statuts, « Valider et envoyer » → n8n, réception, duplication, « Commander » depuis les stocks), webhook `orders`
 - [x] Étape 4 : journal des appels IA (gérant), stats, webhook `calls`, purge RGPD
-- [ ] 5 Automatisations · 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
+- [x] Étape 5 : automatisations (cartes, réglages, lancement, historique), centre « À valider », cloche Realtime, `docs/n8n-contract.md`
+- [ ] 6 Assistant · 7 Dashboard · 8 Paramètres · 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -62,3 +63,12 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Filtres par dates interprétés à l'heure de Paris (`bornePariseEnUtc`) ; statistiques calculées sur 7, 30 ou 90 jours (10 000 appels max).
 - `log_audit()` gère aussi `parametres` (migration 0006) : tout changement de réglage est journalisé.
 - Graphiques : une seule couleur (primaire) pour les séries uniques, couleurs de pôle pour le graphique par pôle (nom toujours sur l'axe), infobulle au survol, vue tableau sous chaque graphique.
+
+## Automatisations, validation, notifications (étape 5)
+- Le mot « n8n » n'apparaît **jamais** dans l'interface. Les adresses des webhooks sont lues côté serveur (`urlWebhook()` : variables d'environnement pour `envoi_commandes` et `assistant_ia`, sinon `parametres.webhooks_n8n` — saisie dans Paramètres, étape 8).
+- Réglages par automatisation : `src/lib/automatisations/definitions.ts` (champs, schéma Zod strict, valeurs par défaut, testés). Le seuil DLC de l'automatisation `alertes_dlc` met aussi à jour `parametres.seuil_dlc_jours` (source unique, utilisée par la vue des stocks).
+- « Lancer maintenant » : `POST /api/automations/[cle]/run` (gérant ; refusé si désactivée ou non branchée ; une exécution `en_cours` est créée puis clôturée par n8n via `executions` avec le même `execution_id`).
+- n8n lit `actif` + réglages avec `GET /api/webhooks/n8n/automations/[cle]` (requête GET signée : corps vide) au début de chaque exécution.
+- Centre « À valider » : commandes brouillon/à valider (un clic = `validerEtEnvoyer`), livraisons lues par l'IA (`valider_livraison` : entrées de stock + commande livrée), relances proposées (table `relances`, envoyées seulement après confirmation).
+- Cloche : `notification-bell.tsx`, Supabase Realtime ; la RLS décide de ce que chacun reçoit (gérant : tout ce qui est « pour tous » ; responsable : celles de son pôle). Les notifications n'ont pas de policy d'insertion : elles sont créées par triggers SQL ou par le service_role (webhooks).
+- Migration 0007 : `relances`, `valider_livraison`, policies de notifications, audit des automatisations.

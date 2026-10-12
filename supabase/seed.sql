@@ -157,3 +157,19 @@ begin
   end loop;
   update commandes set valide_par = '00000000-0000-0000-0000-000000000001' where statut in ('envoyee','confirmee','livree','cloturee','en_retard');
 end $$;
+
+-- Centre « À valider » : lignes rapprochées pour la livraison lue par l'IA, et une relance proposée
+do $$
+declare liv uuid; prod uuid; cmd uuid;
+begin
+  select id into liv from livraisons where statut = 'a_verifier' limit 1;
+  for prod in select id from produits where nom in ('Tomates','Citrons') loop
+    insert into livraison_lignes(livraison_id, produit_id, qte_commandee, qte_recue)
+    values (liv, prod, 20, 20);
+  end loop;
+  select id into cmd from commandes where statut = 'en_retard' limit 1;
+  insert into relances(commande_id, message)
+  values (cmd, 'Bonjour, notre commande est en retard de 3 jours. Pouvez-vous nous confirmer la date de livraison ? Merci, La Palmeraie.');
+  insert into notifications(type, titre, corps, lien)
+  values ('commande_a_valider', 'Relance fournisseur à confirmer', 'Commande en retard — Piscines Services', '/a-valider');
+end $$;

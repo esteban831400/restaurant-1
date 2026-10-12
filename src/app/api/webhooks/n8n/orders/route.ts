@@ -22,6 +22,7 @@ const schema = z.discriminatedUnion("action", [
     date_livraison_prevue: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   }),
   z.object({ action: z.literal("mark_reminder"), commande_id: z.string().uuid() }),
+  z.object({ action: z.literal("propose_reminder"), commande_id: z.string().uuid(), message: z.string().min(1).max(2000) }),
 ]);
 
 /** n8n crée des brouillons et met à jour les statuts. Jamais d'envoi sans validation du gérant. */
@@ -60,6 +61,15 @@ export async function POST(request: Request) {
 
   const { data: commande } = await db.from("commandes").select("id, statut, valide_par, date_envoi").eq("id", input.commande_id).maybeSingle();
   if (!commande) return erreurJson(404, "commande_introuvable", "Commande introuvable.");
+
+  if (input.action === "propose_reminder") {
+    const { data: ouverte } = await db.from("relances").select("id").eq("commande_id", commande.id).eq("statut", "a_confirmer").maybeSingle();
+    if (ouverte) return NextResponse.json({ relance_id: ouverte.id, cree: false });
+    const { data, error } = await db.from("relances").insert({ commande_id: commande.id, message: input.message }).select("id").single();
+    if (error || !data) return erreurJson(500, "erreur_interne", "Création impossible.");
+    await db.from("notifications").insert({ type: "commande_a_valider", titre: "Relance fournisseur à confirmer", corps: input.message.slice(0, 200), lien: "/a-valider" });
+    return NextResponse.json({ relance_id: data.id, cree: true }, { status: 201 });
+  }
 
   if (input.action === "mark_reminder") {
     await db.from("commandes").update({ derniere_relance: new Date().toISOString() }).eq("id", commande.id);

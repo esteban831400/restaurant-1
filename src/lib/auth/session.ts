@@ -37,3 +37,13 @@ export async function requireSession(allowed?: Role[]): Promise<Session> {
   if (allowed && !allowed.includes(session.role)) redirect(homeFor(session.role));
   return session;
 }
+
+/** Pour les routes API : utilisateur actif ou null (jamais de redirection). */
+export async function getSessionOrNull(): Promise<Session | null> {
+  const supabase = createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return null;
+  const { data: profil } = await supabase.from("profiles").select("nom_complet, role, pole_id, actif").eq("id", auth.user.id).single();
+  if (!profil || !profil.actif) return null;
+  return { id: auth.user.id, email: auth.user.email ?? "", nomComplet: profil.nom_complet, role: profil.role as Role, poleId: profil.pole_id };
+}

@@ -9,11 +9,17 @@ export type SignedBody<T> = { ok: true; data: T } | { ok: false; response: NextR
 export const erreurJson = (status: number, code: string, message: string, details?: unknown) =>
   NextResponse.json({ error: code, message, ...(details ? { details } : {}) }, { status });
 
+/** Vérifie la signature HMAC n8n → app sur le corps brut (chaîne vide pour une requête GET). Renvoie une réponse 401 en cas d'échec. */
+export function verifierSignature(request: Request, raw: string): NextResponse | null {
+  const res = verify(serverEnv().N8N_WEBHOOK_SECRET, raw, request.headers.get(SIGNATURE_HEADER), request.headers.get(TIMESTAMP_HEADER));
+  return res.ok ? null : erreurJson(401, `signature_${res.reason}`, "Signature absente, expirée ou invalide.");
+}
+
 /** Lit le corps brut, vérifie la signature HMAC n8n → app, puis valide le JSON avec Zod. */
 export async function readSignedJson<T>(request: Request, schema: ZodType<T>): Promise<SignedBody<T>> {
   const raw = await request.text();
-  const res = verify(serverEnv().N8N_WEBHOOK_SECRET, raw, request.headers.get(SIGNATURE_HEADER), request.headers.get(TIMESTAMP_HEADER));
-  if (!res.ok) return { ok: false, response: erreurJson(401, `signature_${res.reason}`, "Signature absente, expirée ou invalide.") };
+  const refus = verifierSignature(request, raw);
+  if (refus) return { ok: false, response: refus };
 
   let json: unknown;
   try {
