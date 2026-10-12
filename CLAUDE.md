@@ -40,7 +40,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - [x] Étape 5 : automatisations (cartes, réglages, lancement, historique), centre « À valider », cloche Realtime, `docs/n8n-contract.md`
 - [x] Étape 6 : assistant IA (chat, historique, `/api/assistant`)
 - [x] Étape 7 : tableau de bord gérant
-- [ ] 8 Paramètres · 9 Raccourcis
+- [x] Étape 8 : paramètres (identité/thème, utilisateurs, horaires, adresses, journal, RGPD)
+- [ ] 9 Raccourcis
 
 ## Stocks (étape 2)
 - Vue `v_produits_stock` (migration 0004) : produits + stock calculé + `niveau` (rouge < seuil ; orange < 125 % du seuil) + `dlc_proche`. Règle dupliquée dans `src/lib/stock/alertes.ts` (testée).
@@ -87,3 +88,11 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - « À faire aujourd'hui » : `construireTaches()` (`src/lib/dashboard.ts`, testé). Les jours suivent l'heure de Paris (`aujourdhuiParis()`).
 - Top consommation = sorties uniquement (pas les pertes/corrections), classé par valeur (€) pour comparer des unités différentes.
 - `/commandes?attendues=1` : livraisons attendues aujourd'hui.
+
+## Paramètres (étape 8)
+- Réservé au gérant. Onglets : Général (nom/logo/couleurs, seuil DLC, conservation des appels), Utilisateurs, Horaires (+ saisons, fermetures), Adresses, Journal et données.
+- **Thème dynamique** : `parametres.complexe` → `cssTheme()` (`src/lib/theme.ts`) injecté dans le `<head>` du layout racine (`force-dynamic`). Une couleur de marque doit avoir un contraste ≥ 4,5:1 avec le blanc (sinon refusée, et `cssTheme` ne produit rien : aucune injection CSS possible). Mode sombre : couleur éclaircie automatiquement. Le logo est envoyé dans le bucket Storage `public-assets` (gérant seul en écriture, PNG/JPEG/WebP ≤ 1 Mo) ; l'action n'accepte que des URL de ce bucket. La ligne `complexe` est lisible sans connexion (policy), le reste des paramètres exige d'être connecté.
+- **Utilisateurs** : invitation par e-mail (`inviteUserByEmail`, lien vers `/reinitialiser`) + création du profil ; garde-fous testés (`verifierModification`/`verifierSuppression`) : on ne se retire pas ses droits, on ne supprime pas le dernier gérant. Désactiver un compte coupe l'accès immédiatement (garde serveur + fonctions RLS).
+- **RGPD** : `GET /api/rgpd/export?user=` (gérant : tout le monde ; sinon soi-même ; journalisé) ; suppression = `auth.admin.deleteUser` (cascade profil/conversations/notifications), historique métier conservé anonymisé (FK `on delete set null`, migration 0009), `audit_log` anonymisé + entrée `RGPD_SUPPRESSION`.
+- **Adresses des automatisations** : `urlWebhookAutorisee()` refuse http en production, localhost, IP privées, `*.internal/*.local` et les identifiants dans l'URL (anti-SSRF ; le contrôle est refait à chaque appel). Limite connue : pas de protection contre le DNS rebinding. Les secrets ne passent jamais par l'interface (seul leur état « configuré / manquant » est affiché).
+- Horaires : `horairesDuJour()` (testé) calcule saison + fermetures ; exposé à n8n par `GET /api/webhooks/n8n/horaires`.

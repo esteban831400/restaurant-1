@@ -117,6 +117,25 @@ Réponses : `201 { "execution_id": "<uuid>" }` (création) ou `200 { "execution_
 
 Séquence recommandée pour une exécution planifiée : `GET automations/{cle}` → si inactif, **stop** (rien n'est enregistré) → `POST executions` (`en_cours`, mémoriser l'`execution_id` reçu) → travail → `POST executions` (`succes` ou `echec`, avec `execution_id`).
 
+## 4 bis. Horaires et fermetures (standard téléphonique)
+
+### `GET {APP_URL}/api/webhooks/n8n/horaires?date=AAAA-MM-JJ`
+
+Requête GET signée (corps vide). `date` optionnelle (défaut : aujourd'hui à Paris). Renvoie les horaires réglés dans Paramètres, **déjà calculés pour la date demandée** (saison de l'année, jour de la semaine, fermetures exceptionnelles) : le workflow n'a rien à recalculer.
+
+```json
+{ "complexe": { "nom": "La Palmeraie" }, "date": "2025-12-25",
+  "saisons": { "haute_du": "06-15", "haute_au": "09-15" },
+  "horaires": { "restaurant": { "basse": { "lundi": { "ouvert": false, "de": "09:00", "a": "18:00" }, "…": {} }, "haute": {} }, "minigolf": {}, "aquatique": {} },
+  "fermetures": [ { "id": "<uuid>", "pole": "restaurant", "du": "2025-12-24", "au": "2025-12-26", "motif": "Noël" } ],
+  "du_jour": {
+    "restaurant": { "ouvert": false, "saison": "basse", "motif_fermeture": "Noël" },
+    "minigolf": { "ouvert": true, "de": "14:00", "a": "18:00", "saison": "basse" },
+    "aquatique": { "ouvert": false, "saison": "basse" }
+  } }
+```
+`du_jour.<pole>` : `ouvert` (booléen), `de`/`a` (`HH:MM`, heure de Paris, présents si ouvert), `saison` (`basse`/`haute`), `motif_fermeture` (présent si une fermeture exceptionnelle s'applique). Les pôles sont `restaurant`, `minigolf`, `aquatique`. Erreur `400 donnees_invalides` si la date est invalide.
+
 ## 5. Commandes
 
 ### `POST {APP_URL}/api/webhooks/n8n/orders`

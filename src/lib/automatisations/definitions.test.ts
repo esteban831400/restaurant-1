@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLES, dureeExecution, reglagesEffectifs, schemaParametres, urlWebhook } from "./definitions";
+import { CLES, dureeExecution, reglagesEffectifs, schemaParametres, urlWebhook, urlWebhookAutorisee } from "./definitions";
 
 describe("schemaParametres", () => {
   it("accepte des réglages valides", () => {
@@ -53,4 +53,14 @@ describe("dureeExecution", () => {
     expect(dureeExecution("2025-01-01T10:00:00Z", "2025-01-01T10:02:05Z")).toBe("2 min 05 s");
     expect(dureeExecution("2025-01-01T10:00:00Z", null)).toBeNull();
   });
+});
+
+describe("urlWebhookAutorisee (production)", () => {
+  it("accepte une adresse https publique", () => expect(urlWebhookAutorisee("https://flows.exemple.fr/hook", false)).toBe(true));
+  it("refuse http, localhost, IP privées et .internal", () => {
+    for (const u of ["http://flows.exemple.fr/x", "https://localhost/x", "https://127.0.0.1/x", "https://10.0.0.5/x", "https://192.168.1.2/x", "https://172.20.0.1/x", "https://169.254.169.254/latest", "https://db.internal/x", "https://user:pw@flows.exemple.fr/x"]) {
+      expect(urlWebhookAutorisee(u, false), u).toBe(false);
+    }
+  });
+  it("autorise http en développement", () => expect(urlWebhookAutorisee("http://localhost:5678/x", true)).toBe(true));
 });

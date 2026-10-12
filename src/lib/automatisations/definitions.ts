@@ -78,15 +78,30 @@ export function reglagesEffectifs(cle: CleAutomatisation, stockes: Record<string
 
 export type AdressesWebhooks = Partial<Record<CleAutomatisation, string>>;
 
-/** Adresse du webhook d'une automatisation : variables d'environnement pour les deux appels historiques, sinon Paramètres. */
-export function urlWebhook(cle: CleAutomatisation, parametres: AdressesWebhooks | null, env: { orderSend?: string; assistant?: string }): string | null {
-  const url = cle === "envoi_commandes" ? env.orderSend : cle === "assistant_ia" ? env.assistant : parametres?.[cle];
-  if (!url) return null;
+const HOTES_INTERDITS = /^(localhost|0\.0\.0\.0|\[::1?\]|.*\.(local|internal|localhost))$/i;
+const IP_PRIVEE = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
+/**
+ * Une adresse saisie par le gérant est appelée depuis le serveur : on refuse tout ce qui vise le réseau interne
+ * (localhost, IP privées, *.local) et le HTTP en production. `autoriserLocal` n'est vrai qu'en développement.
+ */
+export function urlWebhookAutorisee(url: string, autoriserLocal = process.env.NODE_ENV !== "production"): boolean {
   try {
-    return ["https:", "http:"].includes(new URL(url).protocol) ? url : null;
+    const u = new URL(url);
+    if (u.username || u.password) return false;
+    if (autoriserLocal) return u.protocol === "https:" || u.protocol === "http:";
+    return u.protocol === "https:" && !HOTES_INTERDITS.test(u.hostname) && !IP_PRIVEE.test(u.hostname);
   } catch {
-    return null;
+    return false;
   }
+}
+
+/** Adresse du webhook d'une automatisation : variables d'environnement (de confiance) pour les deux appels historiques, sinon Paramètres (contrôlée). */
+export function urlWebhook(cle: CleAutomatisation, parametres: AdressesWebhooks | null, env: { orderSend?: string; assistant?: string }): string | null {
+  if (cle === "envoi_commandes") return env.orderSend || null;
+  if (cle === "assistant_ia") return env.assistant || null;
+  const url = parametres?.[cle];
+  return url && urlWebhookAutorisee(url) ? url : null;
 }
 
 export function dureeExecution(debut: string, fin: string | null): string | null {
