@@ -8,7 +8,7 @@ Application web de gestion du complexe de loisirs La Palmeraie (Restaurant, Mini
 
 Prérequis : Node 20+, Docker (pour Supabase en local).
 
-1. `npm install --legacy-peer-deps` (conflit connu entre les versions de `@types/node` et Vitest).
+1. `npm install`
 2. `cp .env.example .env.local`, puis `npx supabase start` : reporter l'URL, la clé `anon` et la clé `service_role` affichées dans `.env.local`. Les deux secrets de signature et `CRON_SECRET` sont des chaînes aléatoires d'au moins 16 caractères (`openssl rand -hex 32`).
 3. `npx supabase db reset` : applique les migrations (`supabase/migrations/0001…0009`) et charge les données de démonstration.
 4. `npm run dev` puis ouvrir http://localhost:3000. Les e-mails (réinitialisation de mot de passe, invitations) arrivent dans Inbucket : http://127.0.0.1:54324.

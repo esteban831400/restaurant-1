@@ -29,7 +29,7 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Couleurs : primaire #15803D, secondaire #0891B2 ; pôles restaurant #EA580C, mini-golf #16A34A, aquatique #0284C7.
 - Webhooks : en-têtes `X-Palmeraie-Timestamp` + `X-Palmeraie-Signature` = HMAC-SHA256(secret, `timestamp.corps`), tolérance 5 min. Secrets distincts entrant/sortant.
 - `produits.pole_id` permet le stock sur les 3 pôles (à confirmer avec le client).
-- Dépendances installées avec `--legacy-peer-deps` (conflit peer vitest/@types/node).
+- Installation avec un simple `npm install` / `npm ci` (Vercel n'accepte pas `--legacy-peer-deps`) : `@types/node` est aligné sur Node 22 pour satisfaire le peer de Vitest 5. Ne jamais réintroduire le contournement.
 
 ## Avancement
 - [x] Étape 0 : setup, thème, schéma SQL, RLS, fonctions, seed, HMAC testé
