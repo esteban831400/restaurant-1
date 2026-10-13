@@ -1,7 +1,10 @@
-export default function Accueil() {
-  return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <h1 className="text-3xl font-semibold text-primary">La Palmeraie</h1>
-    </main>
-  );
+export const dynamic = "force-dynamic";
+
+import { requireSession } from "@/lib/auth/session";
+import { homeFor } from "@/lib/auth/roles";
+import { redirect } from "next/navigation";
+
+export default async function Accueil() {
+  const session = await requireSession();
+  redirect(homeFor(session.role));
 }

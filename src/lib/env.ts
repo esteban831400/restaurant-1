@@ -26,3 +26,13 @@ export function publicEnv() {
 export function serverEnv() {
   return serverSchema.parse(process.env);
 }
+
+/** Diagnostic de configuration : pour chaque variable, « ok », « absente » ou « invalide ». Ne révèle jamais les valeurs. */
+export function diagnosticEnv(): { nom: string; etat: "ok" | "absente" | "invalide" }[] {
+  const schemas = { ...publicSchema.shape, ...serverSchema.shape } as Record<string, z.ZodType>;
+  return Object.entries(schemas).map(([nom, schema]) => {
+    const valeur = process.env[nom];
+    if (valeur === undefined || valeur === "") return { nom, etat: "absente" as const };
+    return { nom, etat: schema.safeParse(valeur).success ? ("ok" as const) : ("invalide" as const) };
+  });
+}
