@@ -111,4 +111,8 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind + shadcn/ui + lucide-re
 - Ne pas lancer `next dev` entre un `next build` et un `next start` (le dev écrase `.next`).
 
 ## Vérification réalisée
-Tests unitaires (130) + parcours navigateur (Chromium/Playwright) contre un **faux Supabase** : 21 pages sans plantage, palette, raccourcis, panneaux, brouillons, cloche, mobile. Le SQL (migrations 0001–0009, seed) n'a, lui, **jamais été exécuté sur un vrai Postgres** : premier `supabase db reset` = premier test réel.
+Tests unitaires (130) + parcours navigateur (Chromium/Playwright) contre un **faux Supabase** : 21 pages sans plantage, palette, raccourcis, panneaux, brouillons, cloche, mobile. Les migrations 0001–0010 ont été appliquées et testées sur un vrai projet Supabase (RLS par rôle et par pôle, réception, inventaire, validation de livraison, triggers, vues du tableau de bord) ; le `seed.sql` complet reste à rejouer par `supabase db reset` en local.
+
+## Base de données (migration 0010, durcissement)
+- Issue des conseils de sécurité Supabase : `marquer_commandes_en_retard()` était exécutable **sans connexion** via `/rest/v1/rpc` ; les fonctions SECURITY DEFINER sont désormais réservées (cron = `service_role`, réception/validation = utilisateurs connectés), `pg_trgm` est dans le schéma `extensions`, `search_path` figé sur les fonctions d'aide. Restent signalées (voulu) : `auth_role()`/`auth_pole()` (nécessaires aux politiques RLS) et les fonctions de réception/validation (contrôlent aussi le rôle en interne).
+- Piège : l'outil SQL du connecteur Supabase attend une confirmation pour `drop policy` (blocage de 60 s) : utiliser `alter policy`.
