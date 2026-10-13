@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/connexion", "/mot-de-passe-oublie", "/auth/callback", "/api/webhooks", "/api/cron"];
+const PUBLIC_PREFIXES = ["/connexion", "/mot-de-passe-oublie", "/auth/callback", "/api/webhooks", "/api/cron", "/api/health"];
 
 /** Rafraîchit la session Supabase et protège toutes les pages (les webhooks ont leur propre signature). */
 export async function middleware(request: NextRequest) {

@@ -38,6 +38,9 @@ Voir `.env.example`. Aucun secret n'est en dur ni stocké en base. **Les variabl
 3. `vercel.json` planifie `/api/cron/purge` chaque nuit (purge RGPD des appels, commandes en retard) ; Vercel envoie automatiquement `Authorization: Bearer $CRON_SECRET`.
 4. Communiquer à votre prestataire d'automatisation : `docs/n8n-contract.md`, l'URL de l'application et les deux secrets de signature. Les adresses de ses webhooks se saisissent ensuite dans **Paramètres → Adresses**.
 
+## Diagnostic
+En cas de page « erreur serveur » (le détail est masqué en production), ouvrir `/api/health` : il liste les variables d'environnement absentes ou invalides (sans jamais montrer leurs valeurs) et teste la connexion à la base. Après avoir corrigé une variable sur Vercel, **redéployer**.
+
 ## Raccourcis (ordinateur)
 `Ctrl/⌘ + K` palette de commandes · `N` nouvel élément de la page · `/` recherche · `G` puis `S`/`C`/`A` stocks/commandes/automatisations · `Échap` fermer · `?` aide. Un bouton « + Ajouter » (flottant sur téléphone) ouvre les créations dans un panneau latéral.
 
